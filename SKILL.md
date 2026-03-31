@@ -84,7 +84,28 @@ These code style rules apply to ALL repos. Scan the diff (`git diff main...HEAD`
 
 ### Test Gates
 
-- Tests must be deterministic
+1. **Every test must be deterministic**
+   - No `setTimeout` or timing-based assertions — await the actual promise or use fake timers
+   - No looping over arrays to assert (empty array = silent pass) — assert on specific indices or use `.every()` with a length guard
+   - No mutable state (`callCount`, flags) with if/else in mocks — chain `mockResolvedValueOnce` / `mockReturnValueOnce` instead
+
+2. **Every test must be declarative**
+   - Readable without mentally simulating state
+   - Description matches exactly what's asserted
+   - Arrange → Act → Assert structure, all three visible in the test body
+
+3. **Every test must be able to fail**
+   - Don't assert on a value you just set on the same object (tautology)
+   - Don't assert a string constant equals its own hardcoded value
+   - Don't just parse a valid object against a schema and assert `success === true` — exercise the real execution path and verify side effects
+
+4. **Scope**
+   - One behavior per test
+   - Test the contract (inputs → outputs/side effects), not implementation
+   - Cover meaningful edge cases: empty inputs, missing optional fields, error paths
+
+These rules prevent silent-pass bugs (empty array loops, tautological assertions), flaky tests (timing-dependent), and hard-to-read tests (mutable mock state, missing arrange/act/assert).
+
 - Use the project's native mocking framework
 
 ### How to Check
