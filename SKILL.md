@@ -126,7 +126,7 @@ Report violations as a list. Distinguish between new code violations (must fix) 
 
 ## Step 3: Code Simplification
 
-If `/simplify` is available, invoke it. If not, perform the following three reviews manually:
+If `/simplify` is available, invoke it. Otherwise, run the model's equivalent code simplification command (e.g., Gemini's built-in code review, Codex's refactor mode). As a last resort, perform the following three reviews manually:
 
 1. **Code Reuse Review** — search for existing utilities that could replace new code, flag duplication
 2. **Code Quality Review** — redundant state, parameter sprawl, copy-paste, leaky abstractions, stringly-typed code, unnecessary comments
