@@ -1,11 +1,11 @@
 ---
 name: code-quality
-description: Review a PR or branch for code quality, reuse, and efficiency. Applies quality gates, /simplify, and clean code principles. Use when asked to review code, check a PR, or run code quality on a branch.
+description: Review a PR or branch for code quality, reuse, and efficiency. Applies quality gates, code simplification, and clean code principles. Use when asked to review code, check a PR, or run code quality on a branch.
 ---
 
 # Code Quality Review
 
-Review code changes on a branch or PR for quality, reuse, and efficiency. Applies code style quality gates, runs /simplify for reuse and efficiency, and applies clean code principles. Use as you would use /simplify — invoke on a branch or PR and let it run.
+Review code changes on a branch or PR for quality, reuse, and efficiency. Applies code style quality gates, code simplification, and clean code principles. Invoke on a branch or PR and let it run.
 
 ## Constraints
 
@@ -124,15 +124,15 @@ git diff main...HEAD | grep '^+' | grep '\blet\b'    # let declarations
 
 Report violations as a list. Distinguish between new code violations (must fix) and pre-existing violations in touched files (note but don't fix — prefer smaller diffs).
 
-## Step 3: Run /simplify
+## Step 3: Code Simplification
 
-Invoke the `/simplify` skill. This launches three parallel review agents:
+If `/simplify` is available, invoke it. If not, perform the following three reviews manually:
 
 1. **Code Reuse Review** — search for existing utilities that could replace new code, flag duplication
 2. **Code Quality Review** — redundant state, parameter sprawl, copy-paste, leaky abstractions, stringly-typed code, unnecessary comments
 3. **Efficiency Review** — redundant computations, missed concurrency, hot-path bloat, recurring no-op updates, memory concerns
 
-Wait for all three agents to complete. Aggregate findings. Fix actionable issues directly. Skip false positives with a brief note.
+Aggregate findings. Fix actionable issues directly. Skip false positives with a brief note.
 
 ## Step 4: Clean Code Principles
 
@@ -329,7 +329,7 @@ Provide a structured summary:
 ## Analysis Modes
 
 ### Default: Full Review
-All steps above — quality gates, /simplify, clean code principles, lint, tests.
+All steps above — quality gates, code simplification, clean code principles, lint, tests.
 
 ### Module Dependencies (`--deps`)
 Check for: circular dependencies, god modules (imported everywhere), orphan modules, layer violations.
