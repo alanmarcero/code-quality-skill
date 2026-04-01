@@ -61,6 +61,14 @@ EXAMPLES:
 3. If a repo path is provided, `cd` to it. Otherwise use the current working directory.
 4. If `--repo` is passed, run the Full Repo Refactor mode (see below).
 5. If `--deps`, `--testability`, or `--principle=<name>` is passed, run only that focused analysis mode (see Analysis Modes below).
+6. **If no arguments are provided**, check the current branch:
+   - If on a feature branch (not main/master/dev/develop), review the current branch vs the base branch. This is the default behavior.
+   - If on main/master/dev/develop, present the user with options:
+     - `--repo` — full repo refactor
+     - Review the last commit
+     - Review a specific branch (list recent branches)
+     - Review a specific PR
+   Do not proceed until the user picks an option.
 
 ## Step 1: Checkout and Identify Changes
 
