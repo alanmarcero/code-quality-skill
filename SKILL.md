@@ -1,11 +1,11 @@
 ---
 name: code-quality
-description: Review a PR or branch for code quality, reuse, and efficiency. Applies quality gates, code simplification, and clean code principles. Use when asked to review code, check a PR, or run code quality on a branch.
+description: Review a PR, branch, or full repo for code quality, reuse, and efficiency. Applies quality gates, code simplification, and clean code principles. Use when asked to review code, check a PR, run code quality on a branch, or refactor an entire repo.
 ---
 
 # Code Quality Review
 
-Review code changes on a branch or PR for quality, reuse, and efficiency. Applies code style quality gates, code simplification, and clean code principles. Invoke on a branch or PR and let it run.
+Review code changes on a branch, PR, or full repo for quality, reuse, and efficiency. Applies code style quality gates, code simplification, and clean code principles. Invoke on a branch, PR, or use `--repo` for full-repo refactoring.
 
 ## Constraints
 
@@ -26,13 +26,14 @@ USAGE:
   /code-quality <PR-url>
   /code-quality <branch-name>
   /code-quality <branch-name> <repo-path>
+  /code-quality --repo                    Full repo refactor (logic and tests in separate commits)
   /code-quality --deps                    Focus on module dependencies
   /code-quality --testability             Focus on unit testability
   /code-quality --principle=<name>        Focus on one clean code principle
 
 ARGUMENTS:
-  PR URL        Full GitHub PR URL (e.g., https://github.com/himarley/labs/pull/510)
-  branch        Branch name to review (e.g., HMB-16579-add-visibleto-to-fields)
+  PR URL        Full GitHub PR URL (e.g., https://github.com/org/repo/pull/123)
+  branch        Branch name to review (e.g., ABC-123-add-feature)
   repo-path     Path to the repo (defaults to current working directory)
 
 CLEAN CODE PRINCIPLES:
@@ -58,7 +59,8 @@ EXAMPLES:
 1. If the argument is a GitHub PR URL, extract the repo owner/name and PR number. Use `gh pr view <number> --json headRefName` to get the branch name.
 2. If the argument is a branch name, use it directly.
 3. If a repo path is provided, `cd` to it. Otherwise use the current working directory.
-4. If `--deps`, `--testability`, or `--principle=<name>` is passed, run only that focused analysis mode (see Analysis Modes below).
+4. If `--repo` is passed, run the Full Repo Refactor mode (see below).
+5. If `--deps`, `--testability`, or `--principle=<name>` is passed, run only that focused analysis mode (see Analysis Modes below).
 
 ## Step 1: Checkout and Identify Changes
 
@@ -330,6 +332,33 @@ Provide a structured summary:
 
 ### Default: Full Review
 All steps above — quality gates, code simplification, clean code principles, lint, tests.
+
+### Full Repo Refactor (`--repo`)
+
+Refactor the entire repo for code quality. Logic and tests are kept in **separate commits** so they can verify each other.
+
+**Critical rule: never change logic and tests in the same commit.** Tests confirm logic changes. Logic confirms test changes. If you change both at once, neither can verify the other.
+
+**Workflow:**
+
+1. **Scan the full repo** — identify all source files and test files. Categorize them.
+2. **Run tests first** — establish a passing baseline. If tests don't pass before you start, stop and report.
+3. **Phase 1: Refactor logic** — apply all quality gates and clean code principles to source files only. Do NOT touch test files. After each logical grouping of changes:
+   - Run the full test suite to confirm nothing broke
+   - Commit only the source file changes (e.g., "refactor: apply clean code principles to auth module")
+   - If tests fail, revert and fix before continuing
+4. **Phase 2: Refactor tests** — apply test gates and clean code principles to test files only. Do NOT touch source files. After each logical grouping of changes:
+   - Run the full test suite to confirm tests still pass
+   - Commit only the test file changes (e.g., "test: refactor auth module tests for clarity")
+   - If tests fail, the test refactor introduced a bug — fix the test, not the source
+5. **Repeat** — continue alternating phases until the repo is clean
+6. **Final verification** — run the full test suite and lint one last time
+
+**Commit discipline:**
+- Logic commits contain ONLY source files
+- Test commits contain ONLY test files
+- Never mix them — this is the whole point
+- Each commit should pass the test suite independently
 
 ### Module Dependencies (`--deps`)
 Check for: circular dependencies, god modules (imported everywhere), orphan modules, layer violations.
