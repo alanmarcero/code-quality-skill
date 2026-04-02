@@ -98,6 +98,7 @@ These code style rules apply to ALL repos. Scan the diff (`git diff main...HEAD`
    - No `setTimeout` or timing-based assertions — await the actual promise or use fake timers
    - No looping over arrays to assert (empty array = silent pass) — assert on specific indices or use `.every()` with a length guard
    - No mutable state (`callCount`, flags) with if/else in mocks — chain `mockResolvedValueOnce` / `mockReturnValueOnce` instead
+   - Import and use the service's existing constants — never hardcode string/number values that already exist as named exports. If the service defines `EXTRACTION_SOURCE.USER_SMS`, the test uses that import, not the raw string `"userSMS"`
 
 2. **Every test must be declarative**
    - Readable without mentally simulating state
