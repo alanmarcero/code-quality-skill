@@ -90,7 +90,7 @@ These code style rules apply to ALL repos. Scan the diff (`git diff main...HEAD`
 - **No for loops** — use `.forEach()`, `.filter()`, `.map()`, `.flatMap()`, `.some()`, `.every()` instead of `for (let i = ...)` or `for...of`
 - **No else branches** — use early returns, guard clauses, `??`, and ternaries instead of `if/else`
 - **Chain over intermediates** — prefer `.filter().forEach()` and `.flatMap()` chains over accumulator loops with push
-- **Prefer const over let** — use multiple `const` declarations rather than one `let` that gets reassigned
+- **Prefer immutable variables** — avoid reassignment; use multiple immutable declarations rather than one mutable variable that gets reassigned. Examples: `const` over `let` in TypeScript/JavaScript, `final` in Java, tuples or frozen dataclasses in Python, short-lived values over pointer reassignment in Go
 
 ### Test Gates
 
