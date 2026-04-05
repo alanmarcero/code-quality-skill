@@ -62,7 +62,7 @@ Applied to new code in the diff only. Pre-existing violations in untouched lines
 
 Applied to test files in the diff. Prevents silent-pass bugs, flaky tests, and hard-to-read tests.
 
-1. **Deterministic** — no `setTimeout`/timing assertions, no looping over arrays without length guards, no mutable state with if/else in mocks (use `mockResolvedValueOnce` chains), use service constants not hardcoded values
+1. **Deterministic** — no `setTimeout`/timing assertions, no loops in tests (hide which iteration failed, empty arrays silently pass — assert on specific indices or full array with `.toEqual()`), no mutable state with if/else in mocks (use `mockResolvedValueOnce` chains), use service constants not hardcoded values
 2. **Declarative** — readable without simulating state, description matches assertion, visible arrange/act/assert
 3. **Able to fail** — no tautological assertions, no asserting on values you just set, no schema-only validation without exercising real logic
 4. **Scoped** — one behavior per test, test contracts not implementation, cover meaningful edge cases

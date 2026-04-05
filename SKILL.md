@@ -96,7 +96,7 @@ These code style rules apply to ALL repos. Scan the diff (`git diff main...HEAD`
 
 1. **Every test must be deterministic**
    - No `setTimeout` or timing-based assertions — await the actual promise or use fake timers
-   - No looping over arrays to assert (empty array = silent pass) — assert on specific indices or use `.every()` with a length guard
+   - No loops in tests — loops hide which iteration failed, and an empty array silently passes. Assert on specific indices (`result[0]`, `result[1]`) or use `.every()` / `.forEach()` with a length guard. If you need to verify a collection, assert on the full array with `.toEqual()`
    - No mutable state (`callCount`, flags) with if/else in mocks — chain `mockResolvedValueOnce` / `mockReturnValueOnce` instead
    - Import and use the service's existing constants — never hardcode string/number values that already exist as named exports. Use the same constants the source code uses.
 
