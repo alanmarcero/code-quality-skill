@@ -91,6 +91,7 @@ These code style rules apply to ALL repos. Scan the diff (`git diff main...HEAD`
 - **No else branches** — use early returns, guard clauses, `??`, and ternaries instead of `if/else`
 - **Chain over intermediates** — prefer `.filter().forEach()` and `.flatMap()` chains over accumulator loops with push
 - **Prefer immutable variables** — avoid reassignment; use multiple immutable declarations rather than one mutable variable that gets reassigned. Examples: `const` over `let` in TypeScript/JavaScript, `final` in Java, tuples or frozen dataclasses in Python, short-lived values over pointer reassignment in Go
+- **No one-line (or two-line) functions** — a function whose body is a single statement, expression, or short composed call (a `.map().find()` chain, a trim-and-compare, a formatted string) is indirection, not abstraction. Inline it at the call site; duplicating that snippet across call sites is preferred over the extra function, **no matter how many times it repeats**. If the repeated thing is a literal value, extract a named constant, not a function. Does not apply to functions that are an exported API, an interface implementation, or a required callback signature.
 
 ### Test Gates
 
@@ -139,11 +140,27 @@ Report violations as a list. Distinguish between new code violations (must fix) 
 
 If `/simplify` is available, invoke it. Otherwise, run the model's equivalent code simplification command (e.g., Gemini's built-in code review, Codex's refactor mode). As a last resort, perform the following three reviews manually:
 
-1. **Code Reuse Review** — search for existing utilities that could replace new code, flag duplication
+1. **Code Reuse Review (do this first)** — see the theme below.
 2. **Code Quality Review** — redundant state, parameter sprawl, copy-paste, leaky abstractions, stringly-typed code, unnecessary comments
 3. **Efficiency Review** — redundant computations, missed concurrency, hot-path bloat, recurring no-op updates, memory concerns
 
 Aggregate findings. Fix actionable issues directly. Skip false positives with a brief note.
+
+### Reuse before addition — the central theme
+
+The point is not merely to de-duplicate the newly-added lines. It is to verify that an existing helper, function, or code path does not already solve the same problem — or solve a similar problem similarly enough to serve with a small change. New code that reimplements something the codebase already does is a defect even when it duplicates nothing *within* the diff.
+
+For each new block, function, or code path, find the closest existing code that already does this (search siblings in the same file, the same service, and shared helper/util modules). Then satisfy the requirement with the least new code, in this order of preference:
+
+1. **Reuse the existing path unchanged** — call the existing function/helper as-is. Best outcome: zero new logic, nothing to keep in sync. (Example: a new "send this notification" path calling the existing notification-dispatch helper instead of hand-rolling the transport lookup and send.)
+2. **Reuse it with a small addition** — one extra parameter, an optional flag, or a single new branch on the existing path, when that does not distort its responsibility.
+3. **Extract a shared path** — when the new code and an existing block (often a sibling added in the same or an adjacent change) solve the same problem the same way, factor the common part into one helper both call. (Example: an automatic-retry block that repeats the manual-retry block's validate/execute/fallback sequence, extract one helper, call it from both.)
+
+Two failure modes to catch specifically:
+- **Reimplements an existing path** — a hand-rolled copy of what a shared wrapper/util already provides. Redirect to option 1 or 2.
+- **Duplicates a sibling block** — a second near-copy of a block that already exists nearby. Redirect to option 3.
+
+Prefer the option that removes the duplication while changing the fewest existing call sites. But do not create a helper just to satisfy this when the shared body is one or two lines — see the small-function threshold under DRY; inline duplication wins there.
 
 ## Step 4: Clean Code Principles
 
@@ -195,6 +212,8 @@ Every piece of knowledge has a single, authoritative representation.
                                  } as const;
 ```
 
+**Small-function threshold — do not over-DRY.** The size of the extracted body is a hard floor that overrides repetition count. A helper whose body would be one or two lines — a single composed call (`.map().find()`), a trim-and-compare, a formatted string — must NOT be introduced purely for reuse, no matter how many times the snippet repeats. Inlining it at each call site is clearer than the indirection and reads better in the diff. Repetition frequency does not lift this floor. Neither does "authoritative knowledge" when the shared thing is trivial logic: if what must stay consistent is a *value* (a magic number, a URL, a wire constant), extract a named constant, not a function. Extract a helper only when its body is 3 or more lines of real logic that would otherwise be genuinely duplicated. This is the "No one-line functions" gate applied to DRY: a two-line composed call repeated four times is still four cheap inline copies, not a missing abstraction.
+
 ### 4. Single Responsibility
 
 Each module/class/file has only one reason to change.
@@ -228,6 +247,87 @@ for (const user of users) { if (user.isActive) { } }
 // Good: Filter active users - inactive migrated to legacy (JIRA-1234)
 const activeUsers = users.filter(user => user.isActive);
 ```
+
+**A comment earns its bytes only by carrying knowledge the code cannot.** Calibrate to a reader who is fluent at reading code and never skims — increasingly that reader is a model, not a human, which means every comment is ingested every time the file is in context. Precision matters *more*, not less: a good comment lands reliably, a redundant one taxes reliably. A comment is worth keeping only when it says something the code itself cannot:
+- **why** a non-obvious approach was chosen,
+- an **invariant** the code must preserve,
+- a **gotcha / hazard** (rate limits, ordering, thread/actor safety, a value that must stay in sync elsewhere),
+- a **cross-reference** ("mirrors X", "matches Y"),
+- **domain knowledge** not evident from the names,
+- the **provenance / freshness** of data (why an entry exists, "as of <date>"),
+- a doc-comment that conveys a type/function's **purpose** when the name alone doesn't.
+
+Keep navigation markers (e.g. `// MARK:`) — cheap and aid jumping. Remove the rest. Highest-yield removals in practice: boilerplate doc-comments that paraphrase the signature ("Returns a new X with the Y set"), field-group / section labels that just repeat the field names below them, unit annotations on already-named constants (`// 1 hour` on a `3600`), and arrange/act/assert narration in tests. Be conservative when unsure — over-keeping a borderline "why" costs a few tokens; over-deleting loses knowledge that cannot be recovered from the code.
+
+**Prefer an enforced invariant over a described one.** A comment is advisory; a test or a type is load-bearing. When a comment states an invariant ("must stay deduplicated", "these two must match", "returns exactly N"), consider encoding it as an assertion or a type so a future change that breaks it fails loudly instead of silently contradicting the prose. Comment the *why*; let a test guard the *what*.
+
+**Comment accuracy near the diff.** For every comment that is added, modified, or sits within ~5 lines of changed code, verify it still describes the code correctly after the update. Stale comments are worse than no comments — they actively mislead.
+
+**Check for:**
+- Comment refers to a parameter, return value, branch, or behavior that no longer exists or has changed.
+- Comment describes the *old* algorithm/intent after a refactor.
+- Comment mentions a function/file/ticket that was renamed, moved, or closed.
+- Comment claims an invariant or precondition the new code no longer guarantees.
+- Comment count/example is now wrong (e.g., "returns 3 fields" when it now returns 4).
+- JSDoc/docstring `@param`, `@returns`, or type description doesn't match the current signature.
+
+```typescript
+// Before the change
+// Returns the user's active subscriptions, sorted by created date
+function getSubscriptions(userId: string): Subscription[] { ... }
+
+// After adding a status filter param — comment is now stale (lies about behavior)
+// Bad: comment unchanged
+// Returns the user's active subscriptions, sorted by created date
+function getSubscriptions(userId: string, status: Status): Subscription[] { ... }
+
+// Good: comment updated or removed
+function getSubscriptions(userId: string, status: Status): Subscription[] { ... }
+```
+
+**How to check:** for each hunk in `git diff main...HEAD`, read the surrounding context (the file at HEAD, ±5 lines around each changed range). Flag any comment whose claim no longer matches the current code. Fix by updating the comment to reflect the new behavior or, when the comment was just restating the code, deleting it.
+
+**Code paragraphs.** Function bodies should read as a sequence of paragraphs, each representing one conceptual step (a guard, a normalization, a derivation, a side effect, a write). Paragraphs are separated by a single blank line, and non-trivial paragraphs are led by a brief 1–2 line comment that names the step. This complements minimal-comments: don't comment individual lines; *do* comment conceptual paragraphs where the topic sentence saves a reader from re-deriving intent.
+
+Three rules:
+
+1. **Paragraph boundaries are conceptual, not syntactic.** A `try/catch` wrapping an external call is one paragraph. The lines that build a request payload are one paragraph. Don't break paragraphs mid-step just to add whitespace.
+2. **The comment is a topic sentence.** One line preferred, two if a tradeoff or non-obvious mechanism needs to fit. No blank line between the comment and its code; one blank line above the comment, separating from the prior paragraph.
+3. **Skip the comment when the paragraph is self-evident from naming.** A guard whose names already explain themselves doesn't need a heading. The comment is for the steps where intent isn't already legible — typically when *why* the step exists is non-obvious from the code.
+
+```typescript
+// Good — function body reads as paragraphs, each headed by intent (or skipped when obvious)
+async function syncUpdate(params: { ... }): Promise<void> {
+  if (!params.targetId || !params.actor) return
+
+  const normalizedFirst = normalize(params.firstValue)
+  const normalizedSecond = normalize(params.secondValue)
+
+  // Normalize the previous values too so the diff compares like-for-like;
+  // otherwise upstream formatting noise would re-fire the update every turn.
+  const normalizedPrevFirst = normalize(params.previousFirstValue)
+  const normalizedPrevSecond = normalize(params.previousSecondValue)
+  const firstChanged = normalizedFirst !== undefined && normalizedFirst !== normalizedPrevFirst
+  const secondChanged = normalizedSecond !== undefined && normalizedSecond !== normalizedPrevSecond
+  if (!firstChanged && !secondChanged) return
+
+  const payload = {
+    ...(firstChanged && { first: normalizedFirst }),
+    ...(secondChanged && { second: normalizedSecond }),
+  }
+
+  try { ... } catch (error) { ... }
+}
+```
+
+The "normalize current" paragraph needs no comment — names tell the story. The "normalize previous" paragraph gets one because *why* it exists isn't visible from the code. Payload-build and try/catch are self-evident.
+
+**Check for:**
+- Long function bodies with no blank lines — flag as one undifferentiated wall of code; suggest paragraph breaks at conceptual boundaries.
+- Blank lines *inside* what is conceptually one paragraph (mid-step gaps that disrupt flow).
+- Multi-line conceptual steps that perform a non-obvious mechanism but have no leading comment.
+- Comments that should have a blank line above them (separating from the prior paragraph) but don't.
+- Single-line trivial steps that have unnecessary topic comments restating what the code already says.
 
 ### 6. Consistent Formatting
 
@@ -405,4 +505,8 @@ document\.getElementById
 document\.querySelector
 \.innerHTML
 ```
+
+## Completion signal
+
+When you're done with the entire review (and any commits), the very last thing you should do is say `meow` on its own line.
 
