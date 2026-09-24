@@ -132,13 +132,29 @@ git diff main...HEAD --name-only | grep -v '.changeset\|.gitignore'
 git diff main...HEAD | grep '^+' | grep '\bfor\s*('  # for loops
 git diff main...HEAD | grep '^+' | grep '\belse\b'   # else branches
 git diff main...HEAD | grep '^+' | grep '\blet\b'    # let declarations
+
+# Comment syntax: block/JSDoc comments, and // without the trailing space.
+# Expect only eslint-disable directives and empty-catch markers to survive the filter.
+git diff main...HEAD | grep '^+' | grep '/\*' | grep -v 'eslint-disable'
+git diff main...HEAD | grep '^+' | grep '//[^ /]' | grep -v 'https\?://'
 ```
 
 Report violations as a list. Distinguish between new code violations (must fix) and pre-existing violations in touched files (note but don't fix — prefer smaller diffs).
 
 ## Step 3: Code Simplification
 
-If `/simplify` is available, invoke it. Otherwise, run the model's equivalent code simplification command (e.g., Gemini's built-in code review, Codex's refactor mode). As a last resort, perform the following three reviews manually:
+**Run `/simplify` here, after the Step 2 quality gates and before the clean code principles.** It is
+built into Claude Code, so it is always available. Do not check `~/.claude/skills` or
+`~/.claude/commands` for it and conclude it is missing: built-in commands have no file on disk.
+Skipping this step is not an option in Claude Code, and neither is substituting the manual reviews
+below for it.
+
+The gates come first on purpose. `/simplify` rewrites code, so running it before the gates means
+simplifying lines the gates would have deleted or restructured anyway.
+
+On a harness that genuinely lacks `/simplify`, run that model's equivalent (e.g., Gemini's built-in
+code review, Codex's refactor mode). Only when no such command exists, perform these three reviews
+manually:
 
 1. **Code Reuse Review (do this first)** — see the theme below.
 2. **Code Quality Review** — redundant state, parameter sprawl, copy-paste, leaky abstractions, stringly-typed code, unnecessary comments
@@ -328,6 +344,44 @@ The "normalize current" paragraph needs no comment — names tell the story. The
 - Multi-line conceptual steps that perform a non-obvious mechanism but have no leading comment.
 - Comments that should have a blank line above them (separating from the prior paragraph) but don't.
 - Single-line trivial steps that have unnecessary topic comments restating what the code already says.
+
+**Comment syntax: `// ` line comments, never `/** */` blocks.** Use a double slash followed by a single space, on every comment including the one above a function. Do not use JSDoc or block-comment syntax for function or paragraph comments, even for a one-liner and even when the surrounding file already does. Multi-line comments are consecutive `// ` lines, not a `/* */` block.
+
+```typescript
+// Bad
+/** Which storage backend the uploader writes to. */
+/**
+ * Conflicts use the full-version check, not the coarse label: a
+ * metadata-only edit leaves the label alone but still rejects with 409.
+ */
+//No space after the slashes
+
+// Good
+// Which storage backend the uploader writes to.
+// Conflicts use the full-version check, not the coarse label: a
+// metadata-only edit leaves the label alone but still rejects with 409.
+// Space after the slashes
+```
+
+Two exceptions, both non-comments: tooling directives (`/* eslint-disable ... */`) and empty-block markers inside a `catch` (`/* not json */`). Leave those alone.
+
+**Guard stacks get a blank line and a reason each.** When 3 or more consecutive early-return guards each reject for a *different* reason, separate them with a blank line and head each with a one-line comment saying why that guard exists. This is a deliberate exception to "skip the comment when the paragraph is self-evident": the condition is usually readable, but *why it disqualifies the operation* is domain knowledge that is not. An unbroken wall of 8 `if (...) return "..."` lines is the smell.
+
+```typescript
+// Good
+// Without live provider state there is nothing to compare a switch against.
+if (providerConfig.kind !== "ok") return "Live provider configuration is unavailable"
+
+// The provider was changed outside this control, so the saved setting is no longer trustworthy.
+if (hasDrift) return "Saved setting does not match live provider configuration"
+
+// Selecting the new backend with no captured fallback would leave the switch irreversible.
+if (!record.fallbackConfig && liveTarget === "new") {
+  return "A validated fallback must be captured before selecting the new backend"
+}
+```
+
+Does not apply to one or two lead-in guards at the top of a function (`if (!id) return`), which stay bare and unspaced.
 
 ### 6. Consistent Formatting
 
