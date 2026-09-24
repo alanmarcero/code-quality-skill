@@ -106,6 +106,20 @@ These code style rules apply to ALL repos. Scan the diff (`git diff main...HEAD`
     return undefined
   }
   ```
+- **No `Object.entries`** — iterate `Object.keys()` and index by key, or `Object.values()` when the key is unused. Destructured `[key, value]` tuples make the callback read as array positions, not names. When the value can be `undefined` by type, use `?.` and `??` on the lookup.
+
+  ```typescript
+  // Bad
+  const readyFields = Object.entries(getSections(config))
+    .filter(([sectionName]) => isSectionReady(input, sectionName))
+    .flatMap(([, section]) => section.fields)
+
+  // Good
+  const sections = getSections(config)
+  const readyFields = Object.keys(sections)
+    .filter((sectionName) => isSectionReady(input, sectionName))
+    .flatMap((sectionName) => sections[sectionName]?.fields ?? [])
+  ```
 - **Chain over intermediates** — prefer `.filter().forEach()` and `.flatMap()` chains over accumulator loops with push
 - **Prefer immutable variables** — avoid reassignment; use multiple immutable declarations rather than one mutable variable that gets reassigned. Examples: `const` over `let` in TypeScript/JavaScript, `final` in Java, tuples or frozen dataclasses in Python, short-lived values over pointer reassignment in Go
 - **No one-line (or two-line) functions** — a function whose body is a single statement, expression, or short composed call (a `.map().find()` chain, a trim-and-compare, a formatted string) is indirection, not abstraction. Inline it at the call site; duplicating that snippet across call sites is preferred over the extra function, **no matter how many times it repeats**. If the repeated thing is a literal value, extract a named constant, not a function. Does not apply to functions that are an exported API, an interface implementation, or a required callback signature.
@@ -149,6 +163,7 @@ git diff main...HEAD --name-only | grep -v '.changeset\|.gitignore'
 git diff main...HEAD | grep '^+' | grep '\bfor\s*('  # for loops
 git diff main...HEAD | grep '^+' | grep '\belse\b'   # else branches
 git diff main...HEAD | grep '^+' | grep '\blet\b'    # let declarations
+git diff main...HEAD | grep '^+' | grep 'Object\.entries('  # Object.entries
 
 # Nested ternaries: a ternary branch line indented deeper than the branch line above it,
 # or two ternaries on one line. Requiring a space after `?` skips `?.` and `??`.
