@@ -120,6 +120,28 @@ These code style rules apply to ALL repos. Scan the diff (`git diff main...HEAD`
     .filter((sectionName) => isSectionReady(input, sectionName))
     .flatMap((sectionName) => sections[sectionName]?.fields ?? [])
   ```
+- **No more than two levels of loops or iterators** — one loop or iterator callback (`.map()`, `.filter()`, `.find()`, `.some()`, `.every()`, `.forEach()`, `.flatMap()`, `.reduce()`) inside another is the limit. A third level hides which collection drives the work and usually recomputes the inner result on every pass. Hoist the inner level into a named `const` computed once, or extract a function.
+
+  ```typescript
+  // Bad: three levels
+  const ruledField = missingFields.find((field) =>
+    sections.some((section) => section.rules.some((rule) => rule.field === field))
+  )
+
+  // Good: the inner levels run once
+  const ruleFields = sections.flatMap((section) => section.rules.map((rule) => rule.field))
+  const ruledField = missingFields.find((field) => ruleFields.includes(field))
+  ```
+- **No iterators inside ternaries** — a ternary picks a value; it does not run a loop in a branch. Move the iterator out: return early, or let the ternary pick the collection and run the iterator once on the result.
+
+  ```typescript
+  // Bad
+  const labels = isActive ? items.map((item) => item.label) : []
+
+  // Good
+  const visibleItems = isActive ? items : []
+  const labels = visibleItems.map((item) => item.label)
+  ```
 - **Chain over intermediates** — prefer `.filter().forEach()` and `.flatMap()` chains over accumulator loops with push
 - **Prefer immutable variables** — avoid reassignment; use multiple immutable declarations rather than one mutable variable that gets reassigned. Examples: `const` over `let` in TypeScript/JavaScript, `final` in Java, tuples or frozen dataclasses in Python, short-lived values over pointer reassignment in Go
 - **No one-line (or two-line) functions** — a function whose body is a single statement, expression, or short composed call (a `.map().find()` chain, a trim-and-compare, a formatted string) is indirection, not abstraction. Inline it at the call site; duplicating that snippet across call sites is preferred over the extra function, **no matter how many times it repeats**. If the repeated thing is a literal value, extract a named constant, not a function. Does not apply to functions that are an exported API, an interface implementation, or a required callback signature.
@@ -164,6 +186,13 @@ git diff main...HEAD | grep '^+' | grep '\bfor\s*('  # for loops
 git diff main...HEAD | grep '^+' | grep '\belse\b'   # else branches
 git diff main...HEAD | grep '^+' | grep '\blet\b'    # let declarations
 git diff main...HEAD | grep '^+' | grep 'Object\.entries('  # Object.entries
+
+# Iterator calls, for the two checks below. `?.map(` is excluded because `?` must be followed by a space.
+ITER='\.(map|filter|find|findIndex|findLast|some|every|forEach|flatMap|reduce)\('
+# Iterators inside a ternary: on the same line as `? `, or on a `?`/`:` branch line.
+git diff main...HEAD | grep '^+' | grep -E "(^\+\s*[?:] |[^?]\? ).*$ITER"
+# Three iterator levels on one line. Multi-line nesting still needs a read of each new callback.
+git diff main...HEAD | grep '^+' | grep -E "$ITER.*$ITER.*$ITER"
 
 # Nested ternaries: a ternary branch line indented deeper than the branch line above it,
 # or two ternaries on one line. Requiring a space after `?` skips `?.` and `??`.
