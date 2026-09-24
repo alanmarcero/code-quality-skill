@@ -88,7 +88,24 @@ These code style rules apply to ALL repos. Scan the diff (`git diff main...HEAD`
 ### Code Style Gates
 
 - **No for loops** — use `.forEach()`, `.filter()`, `.map()`, `.flatMap()`, `.some()`, `.every()` instead of `for (let i = ...)` or `for...of`
-- **No else branches** — use early returns, guard clauses, `??`, and ternaries instead of `if/else`
+- **No else branches** — use early returns, guard clauses, `??`, and single-level ternaries instead of `if/else`
+- **No nested ternaries** — a ternary whose branch is another ternary is an `if/else if/else` chain in disguise. Replace it with early returns in a small function, or a lookup when the branches map a key to a value.
+
+  ```typescript
+  // Bad
+  const endReason = result.isAbandoned
+    ? resolveAbandonedEndReason(result.snapshot)
+    : result.isComplete
+      ? END_REASONS.COMPLETED_SUCCESS
+      : undefined
+
+  // Good
+  function resolveEndReason(result: RunResult): EndReason | undefined {
+    if (result.isAbandoned) return resolveAbandonedEndReason(result.snapshot)
+    if (result.isComplete) return END_REASONS.COMPLETED_SUCCESS
+    return undefined
+  }
+  ```
 - **Chain over intermediates** — prefer `.filter().forEach()` and `.flatMap()` chains over accumulator loops with push
 - **Prefer immutable variables** — avoid reassignment; use multiple immutable declarations rather than one mutable variable that gets reassigned. Examples: `const` over `let` in TypeScript/JavaScript, `final` in Java, tuples or frozen dataclasses in Python, short-lived values over pointer reassignment in Go
 - **No one-line (or two-line) functions** — a function whose body is a single statement, expression, or short composed call (a `.map().find()` chain, a trim-and-compare, a formatted string) is indirection, not abstraction. Inline it at the call site; duplicating that snippet across call sites is preferred over the extra function, **no matter how many times it repeats**. If the repeated thing is a literal value, extract a named constant, not a function. Does not apply to functions that are an exported API, an interface implementation, or a required callback signature.
@@ -132,6 +149,18 @@ git diff main...HEAD --name-only | grep -v '.changeset\|.gitignore'
 git diff main...HEAD | grep '^+' | grep '\bfor\s*('  # for loops
 git diff main...HEAD | grep '^+' | grep '\belse\b'   # else branches
 git diff main...HEAD | grep '^+' | grep '\blet\b'    # let declarations
+
+# Nested ternaries: a ternary branch line indented deeper than the branch line above it,
+# or two ternaries on one line. Requiring a space after `?` skips `?.` and `??`.
+git diff main...HEAD | awk '
+  /^\+/ {
+    line = substr($0, 2); match(line, /^[ \t]*/); indent = RLENGTH
+    isBranch = (line ~ /^[ \t]*[?:] /)
+    if (isBranch && prevBranch && indent > prevIndent) print
+    if (line ~ /[^?]\? .* : .*[^?]\? /) print
+    prevBranch = isBranch; prevIndent = indent; next
+  }
+  { prevBranch = 0 }'
 
 # Comment syntax: block/JSDoc comments, and // without the trailing space.
 # Expect only eslint-disable directives and empty-catch markers to survive the filter.
