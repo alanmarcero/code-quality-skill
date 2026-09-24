@@ -507,25 +507,57 @@ class OrderService {
 }
 ```
 
-## Step 5: Lint
+## Step 5: Diff Reduction Sweep
+
+Shrink the PR's diff to the smallest one that still delivers the change. Run this after Steps 2-4, because the gates, `/simplify` and the clean code pass can all add churn.
+
+**The gates win.** Every reduction must leave every Step 2 gate passing. When the smaller form breaks a gate, keep the larger form. Examples: splitting a nested ternary into two `const`s adds a line; inlining a one-line helper at each call site adds lines. Both stay. Never trade behavior or test coverage for a smaller diff either.
+
+Measure before and after:
+
+```bash
+git diff --shortstat main...HEAD      # all changes
+git diff --shortstat -w main...HEAD   # ignoring whitespace; the gap is whitespace-only churn
+git diff --color-moved=dimmed-zebra main...HEAD   # moved blocks render dimmed
+```
+
+Sweep in this order:
+
+1. **Put moved code back.** A function, block, import or declaration that moved without a reason the change needs doubles its lines in the diff. Restore its original position.
+2. **Revert whitespace and formatting on untouched lines.** Re-indents, re-wrapped lines, blank-line shuffles and quote-style flips outside the change. Exception: when CI enforces the formatter on whole modified files, keep the formatter's output, in its own commit.
+3. **Revert incidental renames and reorders.** A variable, parameter or file renamed without need, reordered object keys, imports or `switch` cases.
+4. **Do not re-indent to add a signal.** Wrapping a body in `try` or `if` re-indents every line. Prefer an early return, a guard, or a wrapper at the call site.
+5. **Consolidate tests.**
+   - Fold a new assertion into an existing test that already drives the path.
+   - Delete a new test that an extended existing test now covers.
+   - Merge two tests only when they assert the same behavior (the "one behavior per test" gate still holds).
+   - Reuse existing fixtures and builders instead of adding near-copies.
+6. **Drop dead additions.** Unused exports, parameters, types and imports; debug logs; commented-out code; a widened type nothing uses.
+7. **Split out unrelated changes.** Drive-by fixes and cleanups outside the PR's purpose go to their own PR.
+8. **Reuse before adding.** New code that an existing helper already covers goes (see "Reuse before addition" in Step 3).
+9. **Leave generated files alone.** Regenerate lockfiles, snapshots and codegen only when the change requires it.
+
+After the sweep, re-run the Step 2 checks on the new diff and record both `--shortstat` lines for the report.
+
+## Step 6: Lint
 
 Check the project's `package.json` for lint commands (e.g., `lint`, `lint:eslint`, `lint:types`). Run whatever the project uses. Fix any lint errors found.
 
-## Step 6: Tests
+## Step 7: Tests
 
 Run the project's test runner against affected test files.
 
 Run only test files that are part of the branch's changes or directly test changed code. If a test failure is pre-existing (verify by stashing changes and re-running), note it as pre-existing infrastructure issue.
 
-## Step 7: Fix and Re-verify
+## Step 8: Fix and Re-verify
 
-If any issues were found in steps 2-6:
+If any issues were found in steps 2-7:
 1. Apply fixes directly to the code
 2. Re-run lint on fixed files
 3. Re-run tests on affected test files
 4. Confirm fixes don't introduce new issues
 
-## Step 8: Report
+## Step 9: Report
 
 Provide a structured summary:
 
@@ -556,6 +588,11 @@ Provide a structured summary:
 
 **Overall Score: X/10**
 
+### Diff Reduction
+- Before: <files changed, insertions, deletions>
+- After: <files changed, insertions, deletions>
+- <each reduction applied, and any kept because a gate required it>
+
 ### Lint & Tests
 - ESLint: <clean | N errors>
 - Tests: <N/N pass | failures>
@@ -567,7 +604,7 @@ Provide a structured summary:
 ## Analysis Modes
 
 ### Default: Full Review
-All steps above — quality gates, code simplification, clean code principles, lint, tests.
+All steps above — quality gates, code simplification, clean code principles, diff reduction, lint, tests.
 
 ### Full Repo Refactor (`--repo`)
 
