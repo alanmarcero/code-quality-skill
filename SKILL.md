@@ -88,6 +88,15 @@ These code style rules apply to ALL repos. Scan the diff (`git diff main...HEAD`
 ### Code Style Gates
 
 - **No for loops** — use `.forEach()`, `.filter()`, `.map()`, `.flatMap()`, `.some()`, `.every()` instead of `for (let i = ...)` or `for...of`
+- **Stop iterating once the goal is met** — when the loop looks for one item or one condition, use `.find()`, `.findIndex()`, `.some()` or `.every()`, which stop at the first match. Do not `.forEach()` or `.filter()` the whole collection and then take the first result.
+
+  ```typescript
+  // Bad: walks every item, then takes the first
+  const firstExpired = items.filter((item) => item.isExpired)[0]
+
+  // Good: stops at the first match
+  const firstExpired = items.find((item) => item.isExpired)
+  ```
 - **No else branches** — use early returns, guard clauses, `??`, and single-level ternaries instead of `if/else`
 - **No nested ternaries** — a ternary whose branch is another ternary is an `if/else if/else` chain in disguise. Replace it with early returns in a small function, or a lookup when the branches map a key to a value.
 
@@ -142,6 +151,16 @@ These code style rules apply to ALL repos. Scan the diff (`git diff main...HEAD`
   const visibleItems = isActive ? items : []
   const labels = visibleItems.map((item) => item.label)
   ```
+- **No function calls inside ternaries** — same rule for calls: a ternary branch holds a value, not `formatLabel(item)`. Use an early return, or let the ternary pick the argument so the call runs once outside it.
+
+  ```typescript
+  // Bad
+  return isActive ? formatLabel(item) : ''
+
+  // Good
+  if (!isActive) return ''
+  return formatLabel(item)
+  ```
 - **Chain over intermediates** — prefer `.filter().forEach()` and `.flatMap()` chains over accumulator loops with push
 - **Prefer immutable variables** — avoid reassignment; use multiple immutable declarations rather than one mutable variable that gets reassigned. Examples: `const` over `let` in TypeScript/JavaScript, `final` in Java, tuples or frozen dataclasses in Python, short-lived values over pointer reassignment in Go
 - **No one-line (or two-line) functions** — a function whose body is a single statement, expression, or short composed call (a `.map().find()` chain, a trim-and-compare, a formatted string) is indirection, not abstraction. Inline it at the call site; duplicating that snippet across call sites is preferred over the extra function, **no matter how many times it repeats**. If the repeated thing is a literal value, extract a named constant, not a function. Does not apply to functions that are an exported API, an interface implementation, or a required callback signature.
@@ -191,6 +210,10 @@ git diff main...HEAD | grep '^+' | grep 'Object\.entries('  # Object.entries
 ITER='\.(map|filter|find|findIndex|findLast|some|every|forEach|flatMap|reduce)\('
 # Iterators inside a ternary: on the same line as `? `, or on a `?`/`:` branch line.
 git diff main...HEAD | grep '^+' | grep -E "(^\+\s*[?:] |[^?]\? ).*$ITER"
+# Function calls inside a ternary: same shape as above, any call. Expect some false positives from `?.` chains; read each hit.
+git diff main...HEAD | grep '^+' | grep -E "(^\+\s*[?:] |[^?]\? ).*[A-Za-z_][A-Za-z0-9_]*\("
+# Filter-then-first: walks the whole collection to take one item.
+git diff main...HEAD | grep '^+' | grep -E '\.filter\(.*\)(\[0\]|\.at\(0\)|\.shift\(\))'
 # Three iterator levels on one line. Multi-line nesting still needs a read of each new callback.
 git diff main...HEAD | grep '^+' | grep -E "$ITER.*$ITER.*$ITER"
 
@@ -239,6 +262,8 @@ Aggregate findings. Fix actionable issues directly. Skip false positives with a 
 
 The point is not merely to de-duplicate the newly-added lines. It is to verify that an existing helper, function, or code path does not already solve the same problem — or solve a similar problem similarly enough to serve with a small change. New code that reimplements something the codebase already does is a defect even when it duplicates nothing *within* the diff.
 
+The same holds at the module level: add to an existing library or module, or use a well-maintained package the repo already depends on, before creating a new library.
+
 For each new block, function, or code path, find the closest existing code that already does this (search siblings in the same file, the same service, and shared helper/util modules). Then satisfy the requirement with the least new code, in this order of preference:
 
 1. **Reuse the existing path unchanged** — call the existing function/helper as-is. Best outcome: zero new logic, nothing to keep in sync. (Example: a new "send this notification" path calling the existing notification-dispatch helper instead of hand-rolling the transport lookup and send.)
@@ -254,6 +279,8 @@ Prefer the option that removes the duplication while changing the fewest existin
 ## Step 4: Clean Code Principles
 
 Apply all 8 clean code principles to changed files. Verify new code follows these principles:
+
+**Readability over cleverness applies to all 8.** Code is read far more often than it is written. When a clever form (a dense one-liner, a trick with short-circuit operators, an unusual language feature) and a plain form do the same thing, choose the plain form.
 
 ### 1. Meaningful Names
 
@@ -305,9 +332,9 @@ Every piece of knowledge has a single, authoritative representation.
 
 ### 4. Single Responsibility
 
-Each module/class/file has only one reason to change.
+Each module/class/file has only one reason to change, and each function does one thing.
 
-**Check for:** Files handling multiple unrelated concerns, classes mixing data access + business logic + presentation, services spanning multiple domains.
+**Check for:** Files handling multiple unrelated concerns, classes mixing data access + business logic + presentation, services spanning multiple domains, functions whose honest name needs an "and" (`validateAndSave`), and functions that mix a computation with the I/O that consumes it. A function made of several paragraphs (see Minimal Comments) still does one thing when every paragraph serves the same step.
 
 ```typescript
 // Bad - mixed concerns
@@ -487,7 +514,9 @@ function findUser(id: string): User {
 
 Code designed for unit testing in isolation.
 
-**Check for:** Hard-coded dependencies (`new` internally), direct DB/API calls in logic, scattered `process.env` access, non-deterministic calls (`Date.now()`, `Math.random()`).
+Organize logic into modules of small, exported, pure functions, so tests import and call them directly with no setup. Keep I/O at the edges, in thin callers of those functions. "Small" means focused on one job, not one or two lines; the one-line function gate still holds. If a function is hard to test, split it.
+
+**Check for:** Logic buried in a non-exported function or inside a handler so a test can only reach it through I/O, hard-coded dependencies (`new` internally), direct DB/API calls in logic, scattered `process.env` access, non-deterministic calls (`Date.now()`, `Math.random()`).
 
 ```typescript
 // Bad - untestable
