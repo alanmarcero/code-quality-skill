@@ -5,19 +5,19 @@ description: Review a PR, branch, or full repo for code quality, reuse, and effi
 
 # Code Quality Review
 
-Review code changes on a branch, PR, or full repo for quality, reuse, and efficiency. Applies code style quality gates, code simplification, and clean code principles. Invoke on a branch, PR, or use `--repo` for full-repo refactoring.
+Review a branch, a PR, or a full repo (`--repo`) with code style gates, code simplification, and clean code principles.
 
 ## Constraints
 
-- **Commit fixes but do NOT push** — user will push
-- **Only touch files that are part of the branch's changes** — do not refactor unrelated code
-- **Prefer smaller diffs** — do not clean up code adjacent to changes
-- **If all changes are clean, say so** — do not invent work
-- **No unnecessary comments, docstrings, or type annotations** on unchanged code
+- **Commit fixes. Do NOT push.** The user pushes.
+- **Touch only files in the branch's changes.** Do not refactor unrelated code.
+- **Prefer smaller diffs.** Do not clean up code next to the changes.
+- **If all changes are clean, say so.** Do not invent work.
+- **Add no comments, docstrings, or type annotations** to unchanged code.
 
 ## Handle --help Flag
 
-If the user passes `--help`, `-h`, or `help` as the argument, display this usage guide and DO NOT run the review:
+If the argument is `--help`, `-h`, or `help`, print this guide and DO NOT run the review:
 
 ```
 /code-quality - Review code changes for quality, reuse, and efficiency
@@ -56,19 +56,18 @@ EXAMPLES:
 
 ## Parse Arguments
 
-1. If the argument is a GitHub PR URL, extract the repo owner/name and PR number. Use `gh pr view <number> --json headRefName` to get the branch name.
-2. If the argument is a branch name, use it directly.
-3. If a repo path is provided, `cd` to it. Otherwise use the current working directory.
-4. If `--repo` is passed, run the Full Repo Refactor mode (see below).
-5. If `--deps`, `--testability`, or `--principle=<name>` is passed, run only that focused analysis mode (see Analysis Modes below).
-6. **If no arguments are provided**, check the current branch:
-   - If on a feature branch (not main/master/dev/develop), review the current branch vs the base branch. This is the default behavior.
-   - If on main/master/dev/develop, present the user with options:
-     - `--repo` — full repo refactor
+1. For a GitHub PR URL, extract the owner/repo and PR number. Get the branch with `gh pr view <number> --json headRefName`.
+2. For a branch name, use it directly.
+3. For a repo path, `cd` to it. Otherwise use the current directory.
+4. For `--repo`, run Full Repo Refactor mode.
+5. For `--deps`, `--testability`, or `--principle=<name>`, run only that mode (see Analysis Modes).
+6. **With no arguments**, check the current branch:
+   - On a feature branch (not main/master/dev/develop), review it against the base branch. This is the default.
+   - On main/master/dev/develop, offer these options and wait:
+     - `--repo`: full repo refactor
      - Review the last commit
      - Review a specific branch (list recent branches)
      - Review a specific PR
-   Do not proceed until the user picks an option.
 
 ## Step 1: Checkout and Identify Changes
 
@@ -83,12 +82,12 @@ Read all changed files. Skip non-code files (.changeset, .gitignore, README, etc
 
 ## Step 2: Dispatch Quality Gates
 
-These code style rules apply to ALL repos. Scan the diff (`git diff main...HEAD`) for violations in **new code only** — pre-existing violations in untouched lines are out of scope.
+These rules apply to ALL repos. Scan `git diff main...HEAD` for violations in **new code only**. Violations on untouched lines are out of scope.
 
 ### Code Style Gates
 
-- **No for loops** — use `.forEach()`, `.filter()`, `.map()`, `.flatMap()`, `.some()`, `.every()` instead of `for (let i = ...)` or `for...of`
-- **Stop iterating once the goal is met** — when the loop looks for one item or one condition, use `.find()`, `.findIndex()`, `.some()` or `.every()`, which stop at the first match. Do not `.forEach()` or `.filter()` the whole collection and then take the first result.
+- **No for loops.** Use `.forEach()`, `.filter()`, `.map()`, `.flatMap()`, `.some()`, `.every()` instead of `for (let i = ...)` or `for...of`.
+- **Stop iterating once the goal is met.** To find one item or test one condition, use `.find()`, `.findIndex()`, `.some()` or `.every()`. They stop at the first match. Do not `.forEach()` or `.filter()` the whole collection and take the first result.
 
   ```typescript
   // Bad: walks every item, then takes the first
@@ -97,8 +96,8 @@ These code style rules apply to ALL repos. Scan the diff (`git diff main...HEAD`
   // Good: stops at the first match
   const firstExpired = items.find((item) => item.isExpired)
   ```
-- **No else branches** — use early returns, guard clauses, `??`, and single-level ternaries instead of `if/else`
-- **No nested ternaries** — a ternary whose branch is another ternary is an `if/else if/else` chain in disguise. Replace it with early returns in a small function, or a lookup when the branches map a key to a value.
+- **No else branches.** Use early returns, guard clauses, `??`, and single-level ternaries.
+- **No nested ternaries.** A ternary inside a ternary branch is an `if/else if/else` chain. Replace it with early returns in a small function, or with a lookup when the branches map a key to a value.
 
   ```typescript
   // Bad
@@ -115,7 +114,7 @@ These code style rules apply to ALL repos. Scan the diff (`git diff main...HEAD`
     return undefined
   }
   ```
-- **No `Object.entries`** — iterate `Object.keys()` and index by key, or `Object.values()` when the key is unused. Destructured `[key, value]` tuples make the callback read as array positions, not names. When the value can be `undefined` by type, use `?.` and `??` on the lookup.
+- **No `Object.entries`.** Iterate `Object.keys()` and index by key, or use `Object.values()` when the key is unused. `[key, value]` tuples read as array positions, not names. When the value type allows `undefined`, use `?.` and `??` on the lookup.
 
   ```typescript
   // Bad
@@ -129,7 +128,7 @@ These code style rules apply to ALL repos. Scan the diff (`git diff main...HEAD`
     .filter((sectionName) => isSectionReady(input, sectionName))
     .flatMap((sectionName) => sections[sectionName]?.fields ?? [])
   ```
-- **No more than two levels of loops or iterators** — one loop or iterator callback (`.map()`, `.filter()`, `.find()`, `.some()`, `.every()`, `.forEach()`, `.flatMap()`, `.reduce()`) inside another is the limit. A third level hides which collection drives the work and usually recomputes the inner result on every pass. Hoist the inner level into a named `const` computed once, or extract a function.
+- **At most two levels of loops or iterators.** One iterator callback (`.map()`, `.filter()`, `.find()`, `.some()`, `.every()`, `.forEach()`, `.flatMap()`, `.reduce()`) inside another is the limit. A third level hides which collection drives the work and often recomputes the inner result on every pass. Hoist the inner level into a named `const`, or extract a function.
 
   ```typescript
   // Bad: three levels
@@ -141,7 +140,7 @@ These code style rules apply to ALL repos. Scan the diff (`git diff main...HEAD`
   const ruleFields = sections.flatMap((section) => section.rules.map((rule) => rule.field))
   const ruledField = missingFields.find((field) => ruleFields.includes(field))
   ```
-- **No iterators inside ternaries** — a ternary picks a value; it does not run a loop in a branch. Move the iterator out: return early, or let the ternary pick the collection and run the iterator once on the result.
+- **No iterators inside ternaries.** A ternary picks a value. It does not run a loop in a branch. Return early, or let the ternary pick the collection and run the iterator once on the result.
 
   ```typescript
   // Bad
@@ -151,7 +150,7 @@ These code style rules apply to ALL repos. Scan the diff (`git diff main...HEAD`
   const visibleItems = isActive ? items : []
   const labels = visibleItems.map((item) => item.label)
   ```
-- **No function calls inside ternaries** — same rule for calls: a ternary branch holds a value, not `formatLabel(item)`. Use an early return, or let the ternary pick the argument so the call runs once outside it.
+- **No function calls inside ternaries.** The same rule applies to calls such as `formatLabel(item)`. Use an early return, or let the ternary pick the argument and call once outside it.
 
   ```typescript
   // Bad
@@ -161,36 +160,34 @@ These code style rules apply to ALL repos. Scan the diff (`git diff main...HEAD`
   if (!isActive) return ''
   return formatLabel(item)
   ```
-- **Chain over intermediates** — prefer `.filter().forEach()` and `.flatMap()` chains over accumulator loops with push
-- **Prefer immutable variables** — avoid reassignment; use multiple immutable declarations rather than one mutable variable that gets reassigned. Examples: `const` over `let` in TypeScript/JavaScript, `final` in Java, tuples or frozen dataclasses in Python, short-lived values over pointer reassignment in Go
-- **No one-line (or two-line) functions** — a function whose body is a single statement, expression, or short composed call (a `.map().find()` chain, a trim-and-compare, a formatted string) is indirection, not abstraction. Inline it at the call site; duplicating that snippet across call sites is preferred over the extra function, **no matter how many times it repeats**. If the repeated thing is a literal value, extract a named constant, not a function. Does not apply to functions that are an exported API, an interface implementation, or a required callback signature.
+- **Chain over intermediates.** Prefer `.filter().forEach()` and `.flatMap()` chains over accumulator loops with push.
+- **Prefer immutable variables.** Use several immutable declarations, not one reassigned variable: `const` over `let` in TypeScript/JavaScript, `final` in Java, tuples or frozen dataclasses in Python, short-lived values over pointer reassignment in Go.
+- **No one-line (or two-line) functions.** A body of one statement or short composed call (a `.map().find()` chain, a trim-and-compare, a formatted string) is indirection. Inline it at each call site, **no matter how many times it repeats**. For a repeated literal value, extract a named constant, not a function. Exempt: exported APIs, interface implementations, and required callback signatures.
 
 ### Test Gates
 
-1. **Every test must be deterministic**
-   - No `setTimeout` or timing-based assertions — await the actual promise or use fake timers
-   - No loops in tests — loops hide which iteration failed, and an empty array silently passes. Assert on specific indices (`result[0]`, `result[1]`) or use `.every()` / `.forEach()` with a length guard. If you need to verify a collection, assert on the full array with `.toEqual()`
-   - No mutable state (`callCount`, flags) with if/else in mocks — chain `mockResolvedValueOnce` / `mockReturnValueOnce` instead
-   - Import and use the service's existing constants — never hardcode string/number values that already exist as named exports. Use the same constants the source code uses.
+1. **Every test is deterministic**
+   - No `setTimeout` or timing-based assertions. Await the promise or use fake timers.
+   - No loops in tests. A loop hides which iteration failed, and an empty array passes silently. Assert on specific indices (`result[0]`), use `.every()` with a length guard, or assert on the full array with `.toEqual()`.
+   - No mutable state (`callCount`, flags) with if/else in mocks. Chain `mockResolvedValueOnce` / `mockReturnValueOnce`.
+   - Import the constants the source code uses. Never hardcode a string or number that exists as a named export.
 
-2. **Every test must be declarative**
+2. **Every test is declarative**
    - Readable without mentally simulating state
-   - Description matches exactly what's asserted
-   - Arrange → Act → Assert structure, all three visible in the test body
+   - The description matches exactly what the test asserts
+   - Arrange, Act, Assert, all three visible in the test body
 
-3. **Every test must be able to fail**
-   - Don't assert on a value you just set on the same object (tautology)
-   - Don't assert a string constant equals its own hardcoded value
-   - Don't just parse a valid object against a schema and assert `success === true` — exercise the real execution path and verify side effects
+3. **Every test can fail**
+   - Do not assert on a value you just set on the same object (tautology)
+   - Do not assert that a string constant equals its own hardcoded value
+   - Do not only parse a valid object against a schema and assert `success === true`. Run the real execution path and verify side effects.
 
 4. **Scope**
    - One behavior per test
-   - Test the contract (inputs → outputs/side effects), not implementation
+   - Test the contract (inputs to outputs and side effects), not the implementation
    - Cover meaningful edge cases: empty inputs, missing optional fields, error paths
 
-These rules prevent silent-pass bugs (empty array loops, tautological assertions), flaky tests (timing-dependent), and hard-to-read tests (mutable mock state, missing arrange/act/assert).
-
-- Use the project's native mocking framework
+Use the project's native mocking framework.
 
 ### How to Check
 
@@ -235,56 +232,41 @@ git diff main...HEAD | grep '^+' | grep '/\*' | grep -v 'eslint-disable'
 git diff main...HEAD | grep '^+' | grep '//[^ /]' | grep -v 'https\?://'
 ```
 
-Report violations as a list. Distinguish between new code violations (must fix) and pre-existing violations in touched files (note but don't fix — prefer smaller diffs).
+List the violations. Separate new-code violations (fix) from pre-existing violations in touched files (note, do not fix).
 
 ## Step 3: Code Simplification
 
-**Run `/simplify` here, after the Step 2 quality gates and before the clean code principles.** It is
-built into Claude Code, so it is always available. Do not check `~/.claude/skills` or
-`~/.claude/commands` for it and conclude it is missing: built-in commands have no file on disk.
-Skipping this step is not an option in Claude Code, and neither is substituting the manual reviews
-below for it.
+**Run `/simplify` after the Step 2 gates.** It is built into Claude Code and has no file on disk, so do not conclude it is missing from `~/.claude/skills`. In Claude Code, do not skip it or replace it with the manual reviews below. The gates run first because `/simplify` would otherwise simplify lines the gates then delete.
 
-The gates come first on purpose. `/simplify` rewrites code, so running it before the gates means
-simplifying lines the gates would have deleted or restructured anyway.
+On another harness, run its equivalent (e.g., Gemini's code review, Codex's refactor mode). If none exists, do these reviews manually:
 
-On a harness that genuinely lacks `/simplify`, run that model's equivalent (e.g., Gemini's built-in
-code review, Codex's refactor mode). Only when no such command exists, perform these three reviews
-manually:
+1. **Code Reuse Review (first).** See the section below.
+2. **Code Quality Review.** Redundant state, parameter sprawl, copy-paste, leaky abstractions, stringly-typed code, unnecessary comments.
+3. **Efficiency Review.** Redundant computations, missed concurrency, hot-path bloat, recurring no-op updates, memory concerns.
 
-1. **Code Reuse Review (do this first)** — see the theme below.
-2. **Code Quality Review** — redundant state, parameter sprawl, copy-paste, leaky abstractions, stringly-typed code, unnecessary comments
-3. **Efficiency Review** — redundant computations, missed concurrency, hot-path bloat, recurring no-op updates, memory concerns
+Fix actionable findings directly. Note and skip false positives.
 
-Aggregate findings. Fix actionable issues directly. Skip false positives with a brief note.
+### Reuse before addition
 
-### Reuse before addition — the central theme
+Check that no existing code path already solves the problem, or solves it closely enough to serve with a small change. New code that reimplements what the codebase already does is a defect, even when it duplicates nothing *within* the diff. At the module level, add to an existing library or use a package the repo already depends on before you create a new library.
 
-The point is not merely to de-duplicate the newly-added lines. It is to verify that an existing helper, function, or code path does not already solve the same problem — or solve a similar problem similarly enough to serve with a small change. New code that reimplements something the codebase already does is a defect even when it duplicates nothing *within* the diff.
+For each new code path, find the closest existing code (same file, same service, shared utils). Use the least new code, in this order:
 
-The same holds at the module level: add to an existing library or module, or use a well-maintained package the repo already depends on, before creating a new library.
+1. **Reuse the existing path unchanged.** Zero new logic. (Example: a new "send this notification" path calls the existing notification-dispatch helper instead of its own transport lookup and send.)
+2. **Reuse it with a small addition.** One extra parameter, an optional flag, or one new branch, when that does not distort the path's responsibility.
+3. **Extract a shared path.** When the new code and an existing block solve the same problem the same way, move the common part into one helper both call. (Example: an automatic-retry block that repeats the manual-retry block's validate/execute/fallback sequence.)
 
-For each new block, function, or code path, find the closest existing code that already does this (search siblings in the same file, the same service, and shared helper/util modules). Then satisfy the requirement with the least new code, in this order of preference:
-
-1. **Reuse the existing path unchanged** — call the existing function/helper as-is. Best outcome: zero new logic, nothing to keep in sync. (Example: a new "send this notification" path calling the existing notification-dispatch helper instead of hand-rolling the transport lookup and send.)
-2. **Reuse it with a small addition** — one extra parameter, an optional flag, or a single new branch on the existing path, when that does not distort its responsibility.
-3. **Extract a shared path** — when the new code and an existing block (often a sibling added in the same or an adjacent change) solve the same problem the same way, factor the common part into one helper both call. (Example: an automatic-retry block that repeats the manual-retry block's validate/execute/fallback sequence, extract one helper, call it from both.)
-
-Two failure modes to catch specifically:
-- **Reimplements an existing path** — a hand-rolled copy of what a shared wrapper/util already provides. Redirect to option 1 or 2.
-- **Duplicates a sibling block** — a second near-copy of a block that already exists nearby. Redirect to option 3.
-
-Prefer the option that removes the duplication while changing the fewest existing call sites. But do not create a helper just to satisfy this when the shared body is one or two lines — see the small-function threshold under DRY; inline duplication wins there.
+A hand-rolled copy of a shared util goes to option 1 or 2. A near-copy of a nearby block goes to option 3. Prefer the option that changes the fewest call sites. Do not create a helper whose shared body is one or two lines (see the one-line function gate).
 
 ## Step 4: Clean Code Principles
 
-Apply all 8 clean code principles to changed files. Verify new code follows these principles:
+Apply all 8 principles to the changed files.
 
-**Readability over cleverness applies to all 8.** Code is read far more often than it is written. When a clever form (a dense one-liner, a trick with short-circuit operators, an unusual language feature) and a plain form do the same thing, choose the plain form.
+**Readability over cleverness applies to all 8.** When a clever form (a dense one-liner, a short-circuit trick) and a plain form do the same thing, use the plain form.
 
 ### 1. Meaningful Names
 
-Names reveal intent without requiring comments.
+Names reveal intent without comments.
 
 **Check for:** Single-letter variables (except loop counters), generic names (`data`, `info`, `temp`, `result`, `handler`), unclear abbreviations, booleans not phrased as questions.
 
@@ -297,9 +279,9 @@ let flag = true;                let isEnabled = true;
 
 ### 2. No Side Effects
 
-Functions either perform an action OR return data, not both (Command-Query Separation).
+A function performs an action OR returns data, not both (Command-Query Separation).
 
-**Check for:** Functions returning values while modifying external state, mutating input parameters, hidden I/O in pure-looking functions.
+**Check for:** Functions that return values and modify external state, mutated input parameters, hidden I/O in pure-looking functions.
 
 ```typescript
 // Bad - mutates input
@@ -316,9 +298,9 @@ function addItem(cart: Cart, item: Item): Cart {
 
 ### 3. DRY (Don't Repeat Yourself)
 
-Every piece of knowledge has a single, authoritative representation.
+Each piece of knowledge has one authoritative representation.
 
-**Check for:** Duplicate code blocks (3+ similar lines), repeated magic numbers/strings, same validation logic in multiple places, scattered configuration values.
+**Check for:** Duplicate code blocks (3+ similar lines), repeated magic numbers/strings, the same validation in several places, scattered configuration values.
 
 ```typescript
 // Bad - scattered                // Good - centralized
@@ -328,13 +310,13 @@ Every piece of knowledge has a single, authoritative representation.
                                  } as const;
 ```
 
-**Small-function threshold — do not over-DRY.** The size of the extracted body is a hard floor that overrides repetition count. A helper whose body would be one or two lines — a single composed call (`.map().find()`), a trim-and-compare, a formatted string — must NOT be introduced purely for reuse, no matter how many times the snippet repeats. Inlining it at each call site is clearer than the indirection and reads better in the diff. Repetition frequency does not lift this floor. Neither does "authoritative knowledge" when the shared thing is trivial logic: if what must stay consistent is a *value* (a magic number, a URL, a wire constant), extract a named constant, not a function. Extract a helper only when its body is 3 or more lines of real logic that would otherwise be genuinely duplicated. This is the "No one-line functions" gate applied to DRY: a two-line composed call repeated four times is still four cheap inline copies, not a missing abstraction.
+**Do not over-DRY.** The one-line function gate overrides repetition count. Never extract a one- or two-line body for reuse, however often it repeats. When the shared thing is a *value* (a magic number, a URL, a wire constant), extract a named constant. Extract a helper only for 3 or more lines of real, duplicated logic.
 
 ### 4. Single Responsibility
 
-Each module/class/file has only one reason to change, and each function does one thing.
+Each module, class, or file has one reason to change, and each function does one thing.
 
-**Check for:** Files handling multiple unrelated concerns, classes mixing data access + business logic + presentation, services spanning multiple domains, functions whose honest name needs an "and" (`validateAndSave`), and functions that mix a computation with the I/O that consumes it. A function made of several paragraphs (see Minimal Comments) still does one thing when every paragraph serves the same step.
+**Check for:** Files with unrelated concerns, classes that mix data access, business logic, and presentation, services that span domains, functions whose accurate name needs an "and" (`validateAndSave`), and functions that mix a computation with the I/O that consumes it. A function with several paragraphs still does one thing when they all serve one step.
 
 ```typescript
 // Bad - mixed concerns
@@ -352,9 +334,9 @@ class EmailService { send(to, body) { } }
 
 ### 5. Minimal Comments
 
-Code is self-documenting. Comments explain *why*, never *what*.
+Comments explain *why*, never *what*.
 
-**Check for:** Comments explaining what code does, commented-out code, TODO/FIXME without ticket references.
+**Check for:** Comments that explain what the code does, commented-out code, TODO/FIXME without a ticket reference.
 
 ```typescript
 // Bad: Loop through users and check if active
@@ -364,35 +346,22 @@ for (const user of users) { if (user.isActive) { } }
 const activeUsers = users.filter(user => user.isActive);
 ```
 
-**A comment earns its bytes only by carrying knowledge the code cannot.** Calibrate to a reader who is fluent at reading code and never skims — increasingly that reader is a model, not a human, which means every comment is ingested every time the file is in context. Precision matters *more*, not less: a good comment lands reliably, a redundant one taxes reliably. A comment is worth keeping only when it says something the code itself cannot:
-- **why** a non-obvious approach was chosen,
-- an **invariant** the code must preserve,
-- a **gotcha / hazard** (rate limits, ordering, thread/actor safety, a value that must stay in sync elsewhere),
-- a **cross-reference** ("mirrors X", "matches Y"),
-- **domain knowledge** not evident from the names,
-- the **provenance / freshness** of data (why an entry exists, "as of <date>"),
-- a doc-comment that conveys a type/function's **purpose** when the name alone doesn't.
+**Keep a comment only when it carries knowledge the code cannot.** The reader is fluent and often a model that reads every comment each time the file is in context, so a redundant comment costs tokens every time. Keep comments that state **why** the code uses a non-obvious approach, an **invariant**, a **hazard** (rate limits, ordering, thread safety, a value kept in sync elsewhere), a **cross-reference** ("mirrors X"), **domain knowledge** the names do not show, the **provenance** of data ("as of <date>"), or the **purpose** of a type or function the name does not show.
 
-Keep navigation markers (e.g. `// MARK:`) — cheap and aid jumping. Remove the rest. Highest-yield removals in practice: boilerplate doc-comments that paraphrase the signature ("Returns a new X with the Y set"), field-group / section labels that just repeat the field names below them, unit annotations on already-named constants (`// 1 hour` on a `3600`), and arrange/act/assert narration in tests. Be conservative when unsure — over-keeping a borderline "why" costs a few tokens; over-deleting loses knowledge that cannot be recovered from the code.
+Keep navigation markers (`// MARK:`). Remove the rest, most often doc-comments that paraphrase the signature, section labels that repeat the field names, unit notes on named constants (`// 1 hour` on `3600`), and arrange/act/assert narration. When unsure, keep it: an extra "why" costs a few tokens, and a deleted one is lost.
 
-**Prefer an enforced invariant over a described one.** A comment is advisory; a test or a type is load-bearing. When a comment states an invariant ("must stay deduplicated", "these two must match", "returns exactly N"), consider encoding it as an assertion or a type so a future change that breaks it fails loudly instead of silently contradicting the prose. Comment the *why*; let a test guard the *what*.
+**Prefer an enforced invariant over a described one.** When a comment states an invariant ("these two must match", "returns exactly N"), consider an assertion or a type, so a change that breaks it fails loudly.
 
-**Comment accuracy near the diff.** For every comment that is added, modified, or sits within ~5 lines of changed code, verify it still describes the code correctly after the update. Stale comments are worse than no comments — they actively mislead.
+**Comment accuracy near the diff.** Every comment added, modified, or within ~5 lines of changed code must still describe the code. A stale comment misleads.
 
-**Check for:**
-- Comment refers to a parameter, return value, branch, or behavior that no longer exists or has changed.
-- Comment describes the *old* algorithm/intent after a refactor.
-- Comment mentions a function/file/ticket that was renamed, moved, or closed.
-- Comment claims an invariant or precondition the new code no longer guarantees.
-- Comment count/example is now wrong (e.g., "returns 3 fields" when it now returns 4).
-- JSDoc/docstring `@param`, `@returns`, or type description doesn't match the current signature.
+**Check for** a comment that names a changed or removed parameter, return value, branch, or behavior; describes the *old* algorithm; names a renamed, moved, or closed function, file, or ticket; claims an invariant the code no longer guarantees; gives a wrong count or example ("returns 3 fields" when it returns 4); or has a `@param`, `@returns`, or type that does not match the signature.
 
 ```typescript
 // Before the change
 // Returns the user's active subscriptions, sorted by created date
 function getSubscriptions(userId: string): Subscription[] { ... }
 
-// After adding a status filter param — comment is now stale (lies about behavior)
+// After adding a status filter param, the comment is stale
 // Bad: comment unchanged
 // Returns the user's active subscriptions, sorted by created date
 function getSubscriptions(userId: string, status: Status): Subscription[] { ... }
@@ -401,18 +370,18 @@ function getSubscriptions(userId: string, status: Status): Subscription[] { ... 
 function getSubscriptions(userId: string, status: Status): Subscription[] { ... }
 ```
 
-**How to check:** for each hunk in `git diff main...HEAD`, read the surrounding context (the file at HEAD, ±5 lines around each changed range). Flag any comment whose claim no longer matches the current code. Fix by updating the comment to reflect the new behavior or, when the comment was just restating the code, deleting it.
+**How to check:** read ±5 lines around each hunk in the file at HEAD. Update each stale comment, or delete it when it only restated the code.
 
-**Code paragraphs.** Function bodies should read as a sequence of paragraphs, each representing one conceptual step (a guard, a normalization, a derivation, a side effect, a write). Paragraphs are separated by a single blank line, and non-trivial paragraphs are led by a brief 1–2 line comment that names the step. This complements minimal-comments: don't comment individual lines; *do* comment conceptual paragraphs where the topic sentence saves a reader from re-deriving intent.
+**Code paragraphs.** A function body is a sequence of paragraphs, each one conceptual step (a guard, a normalization, a derivation, a write), separated by one blank line. A 1-2 line comment names each non-trivial step. Do not comment individual lines.
 
 Three rules:
 
-1. **Paragraph boundaries are conceptual, not syntactic.** A `try/catch` wrapping an external call is one paragraph. The lines that build a request payload are one paragraph. Don't break paragraphs mid-step just to add whitespace.
-2. **The comment is a topic sentence.** One line preferred, two if a tradeoff or non-obvious mechanism needs to fit. No blank line between the comment and its code; one blank line above the comment, separating from the prior paragraph.
-3. **Skip the comment when the paragraph is self-evident from naming.** A guard whose names already explain themselves doesn't need a heading. The comment is for the steps where intent isn't already legible — typically when *why* the step exists is non-obvious from the code.
+1. **Boundaries are conceptual, not syntactic.** A `try/catch` around an external call is one paragraph, and so is a payload build. Do not split a step.
+2. **The comment is a topic sentence.** One line, or two for a tradeoff. A blank line above it, none below it.
+3. **Skip the comment when the names explain the paragraph.** Comment only steps whose *why* the code does not show.
 
 ```typescript
-// Good — function body reads as paragraphs, each headed by intent (or skipped when obvious)
+// Good: the body reads as paragraphs, each headed by intent (or skipped when obvious)
 async function syncUpdate(params: { ... }): Promise<void> {
   if (!params.targetId || !params.actor) return
 
@@ -436,16 +405,11 @@ async function syncUpdate(params: { ... }): Promise<void> {
 }
 ```
 
-The "normalize current" paragraph needs no comment — names tell the story. The "normalize previous" paragraph gets one because *why* it exists isn't visible from the code. Payload-build and try/catch are self-evident.
+Only the "normalize previous" paragraph needs a comment.
 
-**Check for:**
-- Long function bodies with no blank lines — flag as one undifferentiated wall of code; suggest paragraph breaks at conceptual boundaries.
-- Blank lines *inside* what is conceptually one paragraph (mid-step gaps that disrupt flow).
-- Multi-line conceptual steps that perform a non-obvious mechanism but have no leading comment.
-- Comments that should have a blank line above them (separating from the prior paragraph) but don't.
-- Single-line trivial steps that have unnecessary topic comments restating what the code already says.
+**Check for:** a long body with no blank lines, blank lines *inside* one step, a non-obvious multi-line step with no comment, a comment with no blank line above it, and a topic comment that restates a trivial step.
 
-**Comment syntax: `// ` line comments, never `/** */` blocks.** Use a double slash followed by a single space, on every comment including the one above a function. Do not use JSDoc or block-comment syntax for function or paragraph comments, even for a one-liner and even when the surrounding file already does. Multi-line comments are consecutive `// ` lines, not a `/* */` block.
+**Comment syntax: `// ` line comments, never `/** */` blocks.** Use a double slash and one space on every comment, including above a function, even when the file uses JSDoc. A multi-line comment is consecutive `// ` lines.
 
 ```typescript
 // Bad
@@ -463,9 +427,9 @@ The "normalize current" paragraph needs no comment — names tell the story. The
 // Space after the slashes
 ```
 
-Two exceptions, both non-comments: tooling directives (`/* eslint-disable ... */`) and empty-block markers inside a `catch` (`/* not json */`). Leave those alone.
+Two exceptions, neither a comment: tooling directives (`/* eslint-disable ... */`) and empty-block markers inside a `catch` (`/* not json */`). Leave them.
 
-**Guard stacks get a blank line and a reason each.** When 3 or more consecutive early-return guards each reject for a *different* reason, separate them with a blank line and head each with a one-line comment saying why that guard exists. This is a deliberate exception to "skip the comment when the paragraph is self-evident": the condition is usually readable, but *why it disqualifies the operation* is domain knowledge that is not. An unbroken wall of 8 `if (...) return "..."` lines is the smell.
+**Guard stacks get a blank line and a reason each.** When 3 or more consecutive early-return guards reject for *different* reasons, separate them with blank lines and give each a one-line comment on why it exists. This overrides rule 3: the condition is readable, but *why it disqualifies the operation* is domain knowledge. The smell is a wall of 8 `if (...) return "..."` lines.
 
 ```typescript
 // Good
@@ -481,17 +445,17 @@ if (!record.fallbackConfig && liveTarget === "new") {
 }
 ```
 
-Does not apply to one or two lead-in guards at the top of a function (`if (!id) return`), which stay bare and unspaced.
+One or two lead-in guards at the top of a function (`if (!id) return`) stay bare and unspaced.
 
 ### 6. Consistent Formatting
 
-Related code grouped together with consistent style.
+Group related code and use one style.
 
 **Check for:** Mixed naming conventions, inconsistent indentation, lines > 100-120 chars, inconsistent import ordering.
 
 ### 7. Error Handling
 
-Use exceptions properly, avoid returning null, separate error handling from business logic.
+Throw exceptions, not null, and keep error handling apart from business logic.
 
 **Check for:** Returning `null`/`undefined` for errors, empty catch blocks, catching generic `Error`, missing async error handling.
 
@@ -512,11 +476,9 @@ function findUser(id: string): User {
 
 ### 8. Testable Code
 
-Code designed for unit testing in isolation.
+Put logic in small, exported, pure functions that tests call with no setup. Keep I/O in thin callers at the edges. "Small" means one job, not one or two lines. Split a function that is hard to test.
 
-Organize logic into modules of small, exported, pure functions, so tests import and call them directly with no setup. Keep I/O at the edges, in thin callers of those functions. "Small" means focused on one job, not one or two lines; the one-line function gate still holds. If a function is hard to test, split it.
-
-**Check for:** Logic buried in a non-exported function or inside a handler so a test can only reach it through I/O, hard-coded dependencies (`new` internally), direct DB/API calls in logic, scattered `process.env` access, non-deterministic calls (`Date.now()`, `Math.random()`).
+**Check for:** Logic in a non-exported function or a handler that a test can reach only through I/O, hard-coded dependencies (`new` internally), direct DB/API calls in logic, scattered `process.env` access, non-deterministic calls (`Date.now()`, `Math.random()`).
 
 ```typescript
 // Bad - untestable
@@ -538,9 +500,9 @@ class OrderService {
 
 ## Step 5: Diff Reduction Sweep
 
-Shrink the PR's diff to the smallest one that still delivers the change. Run this after Steps 2-4, because the gates, `/simplify` and the clean code pass can all add churn.
+Shrink the diff to the smallest one that delivers the change. Steps 2-4 can all add churn.
 
-**The gates win.** Every reduction must leave every Step 2 gate passing. When the smaller form breaks a gate, keep the larger form. Examples: splitting a nested ternary into two `const`s adds a line; inlining a one-line helper at each call site adds lines. Both stay. Never trade behavior or test coverage for a smaller diff either.
+**The gates win.** When the smaller form breaks a Step 2 gate, keep the larger form: splitting a nested ternary into two `const`s, or inlining a one-line helper, adds lines and stays. Never trade behavior or test coverage for a smaller diff.
 
 Measure before and after:
 
@@ -552,46 +514,42 @@ git diff --color-moved=dimmed-zebra main...HEAD   # moved blocks render dimmed
 
 Sweep in this order:
 
-1. **Put moved code back.** A function, block, import or declaration that moved without a reason the change needs doubles its lines in the diff. Restore its original position.
-2. **Revert whitespace and formatting on untouched lines.** Re-indents, re-wrapped lines, blank-line shuffles and quote-style flips outside the change. Exception: when CI enforces the formatter on whole modified files, keep the formatter's output, in its own commit.
-3. **Revert incidental renames and reorders.** A variable, parameter or file renamed without need, reordered object keys, imports or `switch` cases.
+1. **Put moved code back.** Code moved for no reason doubles its lines in the diff.
+2. **Revert whitespace and formatting on untouched lines.** Re-indents, re-wraps, blank-line shuffles, and quote-style flips. Exception: when CI enforces the formatter on whole modified files, keep its output in a separate commit.
+3. **Revert incidental renames and reorders.** Unneeded renames of variables, parameters, or files; reordered object keys, imports, or `switch` cases.
 4. **Do not re-indent to add a signal.** Wrapping a body in `try` or `if` re-indents every line. Prefer an early return, a guard, or a wrapper at the call site.
 5. **Consolidate tests.**
    - Fold a new assertion into an existing test that already drives the path.
    - Delete a new test that an extended existing test now covers.
-   - Merge two tests only when they assert the same behavior (the "one behavior per test" gate still holds).
-   - Reuse existing fixtures and builders instead of adding near-copies.
-6. **Drop dead additions.** Unused exports, parameters, types and imports; debug logs; commented-out code; a widened type nothing uses.
-7. **Split out unrelated changes.** Drive-by fixes and cleanups outside the PR's purpose go to their own PR.
-8. **Reuse before adding.** New code that an existing helper already covers goes (see "Reuse before addition" in Step 3).
-9. **Leave generated files alone.** Regenerate lockfiles, snapshots and codegen only when the change requires it.
+   - Merge two tests only when they assert the same behavior.
+   - Reuse existing fixtures and builders, not near-copies.
+6. **Drop dead additions.** Unused exports, parameters, types, and imports; debug logs; commented-out code; a widened type nothing uses.
+7. **Split out unrelated changes.** Drive-by fixes and cleanups go to their own PR.
+8. **Reuse before adding.** Remove new code that an existing helper covers (see Step 3).
+9. **Leave generated files alone.** Regenerate lockfiles, snapshots, and codegen only when the change requires it.
 
-After the sweep, re-run the Step 2 checks on the new diff and record both `--shortstat` lines for the report.
+Then re-run the Step 2 checks on the new diff and record both `--shortstat` lines for the report.
 
 ## Step 6: Lint
 
-Check the project's `package.json` for lint commands (e.g., `lint`, `lint:eslint`, `lint:types`). Run whatever the project uses. Fix any lint errors found.
+Find the lint commands in `package.json` (e.g., `lint`, `lint:eslint`, `lint:types`). Run them and fix the errors.
 
 ## Step 7: Tests
 
-Run the project's test runner against affected test files.
-
-Run only test files that are part of the branch's changes or directly test changed code. If a test failure is pre-existing (verify by stashing changes and re-running), note it as pre-existing infrastructure issue.
+Run the test files that changed or that test changed code. Stash and re-run to prove a failure is pre-existing, and report it as such.
 
 ## Step 8: Fix and Re-verify
 
-If any issues were found in steps 2-7:
-1. Apply fixes directly to the code
-2. Re-run lint on fixed files
-3. Re-run tests on affected test files
-4. Confirm fixes don't introduce new issues
+If steps 2-7 found issues:
+1. Apply the fixes
+2. Re-run lint on the fixed files
+3. Re-run the affected tests
+4. Confirm the fixes add no new issues
 
 ## Step 9: Report
 
-Provide a structured summary:
-
 ```
-## Code Quality Report — PR #<number> (<branch-name>)
+## Code Quality Report: PR #<number> (<branch-name>)
 
 ### Verdict: <Clean | Clean with N fixes applied | N issues found>
 
@@ -599,9 +557,9 @@ Provide a structured summary:
 - <description of each fix and why>
 
 ### Code Style Gates
-- For loops: <pass/fail — details>
-- Else branches: <pass/fail — details>
-- Const over let: <pass/fail — details>
+- For loops: <pass/fail, details>
+- Else branches: <pass/fail, details>
+- Const over let: <pass/fail, details>
 
 ### Clean Code Scores
 | Principle | Score | Issues |
@@ -633,34 +591,26 @@ Provide a structured summary:
 ## Analysis Modes
 
 ### Default: Full Review
-All steps above — quality gates, code simplification, clean code principles, diff reduction, lint, tests.
+All steps above.
 
 ### Full Repo Refactor (`--repo`)
 
-Refactor the entire repo for code quality. Logic and tests are kept in **separate commits** so they can verify each other.
+**Never change logic and tests in the same commit.** Each verifies the other, so a commit that changes both verifies neither.
 
-**Critical rule: never change logic and tests in the same commit.** Tests confirm logic changes. Logic confirms test changes. If you change both at once, neither can verify the other.
+1. **Scan the repo.** Sort files into source and test.
+2. **Run the tests first.** If the baseline fails, stop and report.
+3. **Phase 1: refactor logic.** Apply the gates and principles to source files only. After each logical group of changes:
+   - Run the full test suite
+   - Commit only source files (e.g., "refactor: apply clean code principles to auth module")
+   - If tests fail, revert and fix before you continue
+4. **Phase 2: refactor tests.** Apply the test gates and principles to test files only. After each logical group:
+   - Run the full test suite
+   - Commit only test files (e.g., "test: refactor auth module tests for clarity")
+   - If tests fail, fix the test, not the source.
+5. **Repeat** the phases until the repo is clean.
+6. **Final check.** Run the full test suite and lint.
 
-**Workflow:**
-
-1. **Scan the full repo** — identify all source files and test files. Categorize them.
-2. **Run tests first** — establish a passing baseline. If tests don't pass before you start, stop and report.
-3. **Phase 1: Refactor logic** — apply all quality gates and clean code principles to source files only. Do NOT touch test files. After each logical grouping of changes:
-   - Run the full test suite to confirm nothing broke
-   - Commit only the source file changes (e.g., "refactor: apply clean code principles to auth module")
-   - If tests fail, revert and fix before continuing
-4. **Phase 2: Refactor tests** — apply test gates and clean code principles to test files only. Do NOT touch source files. After each logical grouping of changes:
-   - Run the full test suite to confirm tests still pass
-   - Commit only the test file changes (e.g., "test: refactor auth module tests for clarity")
-   - If tests fail, the test refactor introduced a bug — fix the test, not the source
-5. **Repeat** — continue alternating phases until the repo is clean
-6. **Final verification** — run the full test suite and lint one last time
-
-**Commit discipline:**
-- Logic commits contain ONLY source files
-- Test commits contain ONLY test files
-- Never mix them — this is the whole point
-- Each commit should pass the test suite independently
+Every commit passes the test suite on its own.
 
 ### Module Dependencies (`--deps`)
 Check for: circular dependencies, god modules (imported everywhere), orphan modules, layer violations.
@@ -669,7 +619,7 @@ Check for: circular dependencies, god modules (imported everywhere), orphan modu
 Check for: hard-coded instantiation, global state access, non-deterministic calls, missing interfaces.
 
 ### Single Principle (`--principle=<name>`)
-Deep analysis on one clean code principle with line numbers and specific fix suggestions.
+Deep analysis of one principle, with line numbers and specific fixes.
 
 ## Grep Pattern Reference
 
@@ -701,5 +651,4 @@ document\.querySelector
 
 ## Completion signal
 
-When you're done with the entire review (and any commits), the very last thing you should do is say `meow` on its own line.
-
+When the review (and any commits) is done, the last thing you say is `meow` on its own line.
