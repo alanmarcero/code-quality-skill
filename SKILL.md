@@ -9,7 +9,7 @@ Review a branch, a PR, or a full repo (`--repo`) with code style gates, reuse ch
 
 ## Constraints
 
-- **Commit fixes. Do NOT push.** The user pushes.
+- **Report by default.** Edit files or commit only when the user asks for fixes. `--repo` counts as that request. Do NOT push; the user pushes.
 - **Touch only files in the branch's changes.** Do not refactor unrelated code.
 - **Prefer smaller diffs.** Do not clean up code next to the changes.
 - **If all changes are clean, say so.** Do not invent work.
@@ -520,7 +520,7 @@ Then re-run the Step 2 checks on the new diff and record both `--shortstat` line
 
 ## Step 6: Lint
 
-Find the lint commands in `package.json` (e.g., `lint`, `lint:eslint`, `lint:types`). Run them and fix the errors.
+Find the lint commands in `package.json` (e.g., `lint`, `lint:eslint`, `lint:types`). Run them and report the errors.
 
 ## Step 7: Tests
 
@@ -528,7 +528,7 @@ Run the test files that changed or that test changed code. Stash and re-run to p
 
 ## Step 8: Fix and Re-verify
 
-If steps 2-7 found issues:
+If the user asked for fixes and steps 2-7 found issues:
 1. Apply the fixes
 2. Re-run lint on the fixed files
 3. Re-run the affected tests
