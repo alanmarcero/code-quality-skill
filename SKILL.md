@@ -1,11 +1,11 @@
 ---
 name: code-quality
-description: Review a PR, branch, or full repo for code quality, reuse, and efficiency. Applies quality gates, code simplification, and clean code principles. Use when asked to review code, check a PR, run code quality on a branch, or refactor an entire repo.
+description: Review a PR, branch, or full repo for code quality and reuse. Applies quality gates, reuse checks, and clean code principles. Use when asked to review code, check a PR, run code quality on a branch, or refactor an entire repo.
 ---
 
 # Code Quality Review
 
-Review a branch, a PR, or a full repo (`--repo`) with code style gates, code simplification, and clean code principles.
+Review a branch, a PR, or a full repo (`--repo`) with code style gates, reuse checks, and clean code principles.
 
 ## Constraints
 
@@ -20,7 +20,7 @@ Review a branch, a PR, or a full repo (`--repo`) with code style gates, code sim
 If the argument is `--help`, `-h`, or `help`, print this guide and DO NOT run the review:
 
 ```
-/code-quality - Review code changes for quality, reuse, and efficiency
+/code-quality - Review code changes for quality and reuse
 
 USAGE:
   /code-quality <PR-url>
@@ -234,19 +234,7 @@ git diff main...HEAD | grep '^+' | grep '//[^ /]' | grep -v 'https\?://'
 
 List the violations. Separate new-code violations (fix) from pre-existing violations in touched files (note, do not fix).
 
-## Step 3: Code Simplification
-
-**Run `/simplify` after the Step 2 gates.** It is built into Claude Code and has no file on disk, so do not conclude it is missing from `~/.claude/skills`. In Claude Code, do not skip it or replace it with the manual reviews below. The gates run first because `/simplify` would otherwise simplify lines the gates then delete.
-
-On another harness, run its equivalent (e.g., Gemini's code review, Codex's refactor mode). If none exists, do these reviews manually:
-
-1. **Code Reuse Review (first).** See the section below.
-2. **Code Quality Review.** Redundant state, parameter sprawl, copy-paste, leaky abstractions, stringly-typed code, unnecessary comments.
-3. **Efficiency Review.** Redundant computations, missed concurrency, hot-path bloat, recurring no-op updates, memory concerns.
-
-Fix actionable findings directly. Note and skip false positives.
-
-### Reuse before addition
+## Step 3: Reuse before addition
 
 Check that no existing code path already solves the problem, or solves it closely enough to serve with a small change. New code that reimplements what the codebase already does is a defect, even when it duplicates nothing *within* the diff. At the module level, add to an existing library or use a package the repo already depends on before you create a new library.
 
