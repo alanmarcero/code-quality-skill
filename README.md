@@ -1,12 +1,12 @@
 # Code Quality Skill
 
-A code quality skill for AI coding agents. It reviews a PR, branch, or full repo for code style, test quality, clean code principles, reuse, and efficiency, then fixes the issues. It includes quality gates, test gates, grep patterns, a scored report, and modes for dependencies, testability, and full-repo refactoring. It works with any language and model.
+A code quality skill for AI coding agents. It reviews a PR, branch, or full repo for code style, test quality, clean code principles, and reuse, then fixes the issues. It includes quality gates, test gates, grep patterns, a scored report, and modes for dependencies, testability, and full-repo refactoring. It works with any language and model.
 
 ## What It Does
 
 1. **Code Style Gates**: flags `for` loops, `else` branches, nested ternaries, `let` over `const`, and accumulator patterns in new code
 2. **Test Gates**: checks that tests are deterministic, declarative, able to fail, and scoped to one behavior
-3. **Code Simplification**: runs `/simplify` or the model's equivalent for reuse, quality, and efficiency
+3. **Reuse**: checks that no existing code path already solves the problem
 4. **Clean Code Principles**: applies 8 principles, from meaningful names to testable code
 5. **Diff Reduction**: shrinks the diff without breaking a gate
 6. **Lint & Tests**: runs the project's lint and test commands on affected files
