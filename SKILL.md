@@ -163,6 +163,7 @@ These rules apply to ALL repos. Scan `git diff main...HEAD` for violations in **
 - **Chain over intermediates.** Prefer `.filter().forEach()` and `.flatMap()` chains over accumulator loops with push.
 - **Prefer immutable variables.** Use several immutable declarations, not one reassigned variable: `const` over `let` in TypeScript/JavaScript, `final` in Java, tuples or frozen dataclasses in Python, short-lived values over pointer reassignment in Go.
 - **No one-line (or two-line) functions.** A body of one statement or short composed call (a `.map().find()` chain, a trim-and-compare, a formatted string) is indirection. Inline it at each call site, **no matter how many times it repeats**. For a repeated literal value, extract a named constant, not a function. Exempt: exported APIs, interface implementations, and required callback signatures.
+- **No function with fewer than 3 call sites.** Grep the repo for each new or changed non-exported function and count its call sites. With 1 or 2, inline it at each one, whatever its length. Same exemptions as the one-line gate, plus recursion.
 
 ### Test Gates
 
@@ -242,7 +243,7 @@ For each new code path, find the closest existing code (same file, same service,
 
 1. **Reuse the existing path unchanged.** Zero new logic. (Example: a new "send this notification" path calls the existing notification-dispatch helper instead of its own transport lookup and send.)
 2. **Reuse it with a small addition.** One extra parameter, an optional flag, or one new branch, when that does not distort the path's responsibility.
-3. **Extract a shared path.** When the new code and an existing block solve the same problem the same way, move the common part into one helper both call. (Example: an automatic-retry block that repeats the manual-retry block's validate/execute/fallback sequence.)
+3. **Extract a shared path.** When the new code and an existing block solve the same problem the same way, move the common part into one helper. This needs 3 or more call sites (see the call-site gate). (Example: an automatic-retry block that repeats the manual-retry block's validate/execute/fallback sequence.)
 
 A hand-rolled copy of a shared util goes to option 1 or 2. A near-copy of a nearby block goes to option 3. Prefer the option that changes the fewest call sites. Do not create a helper whose shared body is one or two lines (see the one-line function gate).
 
@@ -298,7 +299,7 @@ Each piece of knowledge has one authoritative representation.
                                  } as const;
 ```
 
-**Do not over-DRY.** The one-line function gate overrides repetition count. Never extract a one- or two-line body for reuse, however often it repeats. When the shared thing is a *value* (a magic number, a URL, a wire constant), extract a named constant. Extract a helper only for 3 or more lines of real, duplicated logic.
+**Do not over-DRY.** The one-line function gate overrides repetition count. Never extract a one- or two-line body for reuse, however often it repeats. When the shared thing is a *value* (a magic number, a URL, a wire constant), extract a named constant. Extract a helper only for 3 or more lines of real, duplicated logic used at 3 or more call sites.
 
 ### 4. Single Responsibility
 
