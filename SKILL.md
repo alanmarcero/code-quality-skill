@@ -487,55 +487,23 @@ class OrderService {
 }
 ```
 
-## Step 5: Diff Reduction Sweep
-
-Shrink the diff to the smallest one that delivers the change. Steps 2-4 can all add churn.
-
-**The gates win.** When the smaller form breaks a Step 2 gate, keep the larger form: splitting a nested ternary into two `const`s, or inlining a one-line helper, adds lines and stays. Never trade behavior or test coverage for a smaller diff.
-
-Measure before and after:
-
-```bash
-git diff --shortstat main...HEAD      # all changes
-git diff --shortstat -w main...HEAD   # ignoring whitespace; the gap is whitespace-only churn
-git diff --color-moved=dimmed-zebra main...HEAD   # moved blocks render dimmed
-```
-
-Sweep in this order:
-
-1. **Put moved code back.** Code moved for no reason doubles its lines in the diff.
-2. **Revert whitespace and formatting on untouched lines.** Re-indents, re-wraps, blank-line shuffles, and quote-style flips. Exception: when CI enforces the formatter on whole modified files, keep its output in a separate commit.
-3. **Revert incidental renames and reorders.** Unneeded renames of variables, parameters, or files; reordered object keys, imports, or `switch` cases.
-4. **Do not re-indent to add a signal.** Wrapping a body in `try` or `if` re-indents every line. Prefer an early return, a guard, or a wrapper at the call site.
-5. **Consolidate tests.**
-   - Fold a new assertion into an existing test that already drives the path.
-   - Delete a new test that an extended existing test now covers.
-   - Merge two tests only when they assert the same behavior.
-   - Reuse existing fixtures and builders, not near-copies.
-6. **Drop dead additions.** Unused exports, parameters, types, and imports; debug logs; commented-out code; a widened type nothing uses.
-7. **Split out unrelated changes.** Drive-by fixes and cleanups go to their own PR.
-8. **Reuse before adding.** Remove new code that an existing helper covers (see Step 3).
-9. **Leave generated files alone.** Regenerate lockfiles, snapshots, and codegen only when the change requires it.
-
-Then re-run the Step 2 checks on the new diff and record both `--shortstat` lines for the report.
-
-## Step 6: Lint
+## Step 5: Lint
 
 Find the lint commands in `package.json` (e.g., `lint`, `lint:eslint`, `lint:types`). Run them and report the errors.
 
-## Step 7: Tests
+## Step 6: Tests
 
 Run the test files that changed or that test changed code. Stash and re-run to prove a failure is pre-existing, and report it as such.
 
-## Step 8: Fix and Re-verify
+## Step 7: Fix and Re-verify
 
-If the user asked for fixes and steps 2-7 found issues:
+If the user asked for fixes and steps 2-6 found issues:
 1. Apply the fixes
 2. Re-run lint on the fixed files
 3. Re-run the affected tests
 4. Confirm the fixes add no new issues
 
-## Step 9: Report
+## Step 8: Report
 
 ```
 ## Code Quality Report: PR #<number> (<branch-name>)
@@ -563,11 +531,6 @@ If the user asked for fixes and steps 2-7 found issues:
 | Testable Code | X/10 | N |
 
 **Overall Score: X/10**
-
-### Diff Reduction
-- Before: <files changed, insertions, deletions>
-- After: <files changed, insertions, deletions>
-- <each reduction applied, and any kept because a gate required it>
 
 ### Lint & Tests
 - ESLint: <clean | N errors>
