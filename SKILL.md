@@ -72,9 +72,9 @@ EXAMPLES:
 ## Step 1: Checkout and Identify Changes
 
 ```bash
-git fetch origin <branch>
-git checkout <branch>
-git pull origin <branch>
+git fetch origin -- "<branch>"
+git checkout "<branch>" --
+git pull --ff-only origin "<branch>"
 git diff main...HEAD --name-only
 ```
 
